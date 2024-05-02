@@ -1,0 +1,25 @@
+# PR Open으로 발동하는 Pipeline
+name: "Pipeline : Pull Request"
+
+on:
+  workflow_call:        # workflow_call 호출
+    inputs:
+      MODULE:           # 모듈 이름
+        required: true
+        type: string
+
+jobs:
+  # 변경사항 스캔
+  scan-changes:
+    uses: ./.github/workflows/operation_scan.yaml             # Scan Changes Workflow 호출
+    with:
+      MODULE: ${{ inputs.MODULE }}                            # 모듈 이름
+      FIRST_COMMIT: ${{ github.event.pull_request.base.sha }} # PR 이전 Base 커밋의 SHA
+      LAST_COMMIT: ${{ github.event.pull_request.head.sha }}  # PR 이후 Head 커밋의 SHA
+  # 변경사항이 있으면, 변경사항 통합 검증
+  integration:
+    needs: [scan-changes]                                     # scan-changes job이 성공적으로 실행되면 integration job 실행
+    if: needs.scan-changes.outputs.CHANGES_TO_MODULE > 0      # 변경사항이 있을 경우에만 실행
+    uses: ./.github/workflows/operation_integration.yaml      # Integration Workflow 호출
+    with:
+      MODULE: ${{ inputs.MODULE }}                            # 모듈 이름

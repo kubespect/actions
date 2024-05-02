@@ -1,0 +1,21 @@
+# 커밋 SHA 추출
+name: "Operation : SHA Extraction"
+
+on:
+  workflow_call:  # workflow_call 호출
+    outputs:
+      COMMIT_SHA: # 커밋 SHA
+        description: 'Commit SHA'
+        value: ${{ jobs.get-commit-sha.outputs.COMMIT_SHA }}  # get-commit-sha job의 COMMIT_SHA 출력값
+jobs:
+  get-commit-sha:
+    runs-on: ubuntu-latest
+    outputs:
+      COMMIT_SHA: ${{ steps.get-commit-sha.outputs.COMMIT_SHA }}  # 출력값으로 COMMIT_SHA 설정
+    steps:
+      # 커밋 SHA 첫 7자리 추출
+      - id: get-commit-sha
+        name: Get Commit SHA
+        run: |
+          echo "COMMIT_SHA=$(echo ${{ github.sha }} | cut -c 1-7)"
+          echo "COMMIT_SHA=$(echo ${{ github.sha }} | cut -c 1-7)" >> $GITHUB_OUTPUT

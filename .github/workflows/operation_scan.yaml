@@ -1,0 +1,44 @@
+# 모듈에 대한 변경사항을 탐색
+name: "Operation : Scan Changes"
+
+on:
+  workflow_call:        # workflow_call 호출
+    inputs:
+      MODULE:           # 모듈 이름
+        required: true
+        type: string
+      FIRST_COMMIT:     # 첫번째 커밋 SHA
+        required: true
+        type: string
+      LAST_COMMIT:      # 마지막 커밋 SHA
+        required: true
+        type: string
+    outputs:
+      CHANGES_TO_MODULE: # 모듈에 대한 변경사항 개수
+        description: number of changes to the module
+        value: ${{ jobs.scan.outputs.CHANGES_TO_MODULE }}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest # Github Hosted Ubuntu Runner에서 실행
+    outputs:
+      CHANGES_TO_MODULE: ${{ steps.scan-changes.outputs.CHANGES_TO_MODULE }}  # 출력값으로 CHANGES_TO_MODULE 설정
+    steps:
+      # 코드 체크아웃
+      - id: checkout-code
+        name: Checkout Code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # 모든 커밋을 가져옴
+
+      # 변경사항 탐색
+      - id: scan-changes
+        name: Scan Changes
+        run: |
+          echo "🔍 CHECKING CHANGES BETWEEN ${{ inputs.FIRST_COMMIT }} AND ${{ inputs.LAST_COMMIT }} FOR MODULE ${{ inputs.MODULE }}"
+          CHANGES_TO_MODULE=$(git diff --name-only ${{ inputs.FIRST_COMMIT }} ${{ inputs.LAST_COMMIT }} ${{ inputs.MODULE }} | awk 'END{print NR}')
+          echo "CHANGES_TO_MODULE=$CHANGES_TO_MODULE" >> $GITHUB_OUTPUT
+          echo "🔍 CHANGES CHECKED"
+          echo $CHANGES_TO_MODULE CHANGES DETECTED FOR MODULE ${{ inputs.MODULE }}
+        
+      

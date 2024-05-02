@@ -1,0 +1,49 @@
+# 테스트 및 빌드를 수행
+name: "Operation : Integration"
+
+
+permissions:
+  contents: read  # Checkout Code에서 코드 읽기 권한 사용
+  packages: write # Store JAR as Artifact에서 Artifact 쓰기 권한 사용
+
+on:
+  workflow_call:  # workflow_call 호출
+    inputs:
+      MODULE:     # 모듈 이름
+        required: true
+        type: string
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest  # Github Hosted Ubuntu Runner에서 실행
+    steps:
+      # 코드 체크아웃
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      # JDK 17 설정
+      - name: Set up JDK 17
+        uses: actions/setup-java@v1
+        with:
+          java-version: 17
+
+      # Gradle을 사용하여 테스트
+      - name: Test Java Project
+        run: |
+          echo "🧪 TESTING MODULE ${{ inputs.MODULE }}"
+          ./gradlew test -p ${{ inputs.MODULE }}
+          echo "🧪 TEST VALIDATED FOR MODULE ${{ inputs.MODULE }}, MOVING ON TO BUILD"
+
+      # Gradle을 사용하여 빌드
+      - name: Build JAR
+        run: |
+          ./gradlew build -p ${{ inputs.MODULE }}
+          echo "🧱 JAR BUILT FOR MODULE ${{ inputs.MODULE }}"
+
+      # JAR 파일을 Artifact로 저장
+      - name: Store JAR as Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ inputs.MODULE }}-jar
+          path: ${{ inputs.MODULE }}/build/libs/${{ inputs.MODULE }}.jar
+          retention-days: 1 # 1일 후에 Artifact 삭제

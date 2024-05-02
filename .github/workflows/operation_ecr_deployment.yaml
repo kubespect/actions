@@ -1,0 +1,77 @@
+# ECR 레포지토리에 이미지 빌드 및 배포
+name: "Operation : Build & Deploy Image to ECR"
+
+permissions:
+  id-token: write # Configure AWS Credentials에서 ID Token 쓰기 권한 사용
+  contents: read  # Checkout Code에서 코드 읽기 권한 사용
+  packages: read  # Retreive Artifacts에서 Artifact 읽기 권한 사용
+
+on:
+  workflow_call:          # workflow_call 호출
+    inputs:
+      MODULE:             # 모듈 이름
+        required: true
+        type: string
+      NEW_TAG:            # 추가할 태그, 커밋의 SHA
+        required: true
+        type: string
+      USERNAME:           # ECR 계정 이름
+        required: true
+        type: string
+    secrets:
+      AWS_ACCOUNT_ID:     # ECR 계정 ID
+        required: true
+      AWS_REGION:         # ECR 리전
+        required: true
+      IAM_ROLE:           # IAM Role Assume 권한
+        required: true
+
+jobs:
+  deploy-image:
+    runs-on: ubuntu-latest # Github Hosted Ubuntu Runner에서 실행
+    steps:
+      # 추가할 이미지 태그 출력
+      - run: echo "🔖 IMAGE TAG ${{ inputs.NEW_TAG }}"
+
+      # 코드 체크아웃
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      # Artifact 다운로드
+      - name: Retreive Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ inputs.MODULE }}-jar
+
+      # Docker Buildx 설정
+      - id: set-buildx
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # AWS IAM Role Assume 권한 설정
+      - id: configure-aws-credentials
+        name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.IAM_ROLE }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # ECR 로그인
+      - id: login-ecr
+        name: Login to Amazon ECR Private 
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # ECR 레포지토리에 이미지 빌드 및 배포
+      - id: build-push-image
+        name: Build and Push Docker Image to ECR
+        env:
+          MODULE: ${{ inputs.MODULE }}                      # 모듈 이름
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }} # ECR 레지스트리 주소
+          USERNAME: ${{ inputs.USERNAME }}                  # ECR 계정 이름
+          REPOSITORY: devops                                # ECR 레포지토리 이름
+          NEW_TAG: ${{ inputs.NEW_TAG }}                    # 추가할 태그, 커밋의 태그
+        # 이미지 amd64 대상으로 빌드 및 배포
+        run: |
+          docker buildx build --platform linux/amd64 -t $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG --target ${{ inputs.MODULE }} --push .
+          echo "🐳 DOCKER IMAGE BUILT FOR MODULE ${{ inputs.MODULE }} AS $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG"
+          echo "🚀 IMAGE $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG PUSHED"

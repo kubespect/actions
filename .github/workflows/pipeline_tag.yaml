@@ -1,0 +1,38 @@
+# Git Tag 등록 시 발동
+name: "Pipeline : Git Tag"
+
+on:
+  workflow_call:        # workflow_call 호출
+    inputs:
+      MODULE:           # 모듈 이름
+        required: true
+        type: string
+      USERNAME:         # ECR 유저 이름
+        required: true
+        type: string
+    secrets:
+      AWS_ACCOUNT_ID:   # ECR 계정 ID
+        required: true
+      AWS_REGION:       # ECR 리전
+        required: true
+      IAM_ROLE:         # IAM Role Assume 권한
+        required: true
+
+jobs:
+  # 커밋 SHA 가져오기
+  get-sha:
+    uses: ./.github/workflows/operation_get_sha.yaml        # Get SHA Workflow 호출
+  
+  # 커밋 SHA를 가진 이미지에 Git Tag를 이미지 태그로 추가
+  ecr-add-tag:
+    needs: [get-sha]                                        # get-sha job이 성공적으로 실행되면 ecr-add-tag job 실행
+    uses: ./.github/workflows/operation_ecr_add_tag.yaml    # ECR Add Tag Workflow 호출
+    with:
+      MODULE: ${{ inputs.MODULE }}                          # 모듈 이름
+      EXISTING_TAG: ${{ needs.get-sha.outputs.COMMIT_SHA }} # 기존 태그, 태그된 커밋의 SHA
+      NEW_TAG: ${{ github.ref_name }}                       # 추가할 태그, Git Tag 이름
+      USERNAME: ${{ inputs.USERNAME }}                      # ECR 유저 이름
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}         # ECR 계정 ID
+      AWS_REGION: ${{ secrets.AWS_REGION }}                 # ECR 리전
+      IAM_ROLE: ${{ secrets.IAM_ROLE }}                     # IAM Role Assume 권한

@@ -1,0 +1,55 @@
+# 테스트 및 빌드를 수행
+name: "Operation : Integration for Go"
+
+
+permissions:
+  contents: read  # Checkout Code에서 코드 읽기 권한 사용
+  packages: write # Store JAR as Artifact에서 Artifact 쓰기 권한 사용
+
+on:
+  workflow_call:  # workflow_call 호출
+    inputs:
+      MODULE:     # 모듈 이름
+        required: true
+        type: string
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest  # Github Hosted Ubuntu Runner에서 실행
+    steps:
+      # 코드 체크아웃
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      # Use Go 1.22.2
+      - name: Set up Go 1.22.2
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.2"
+
+      # Install Go Modules
+      - name: Install Go Modules
+        run: |
+          go mod tidy
+          echo "📦 GO MODULES INSTALLED"
+
+      # Test Go Project
+      - name: Test Go Project
+        run: |
+          echo "🧪 TESTING MODULE ${{ inputs.MODULE }}"
+          go test -v ${{ inputs.MODULE }}
+          echo "🧪 TEST VALIDATED FOR MODULE ${{ inputs.MODULE }}, MOVING ON TO BUILD"
+
+      # Build Go Project
+      - name: Build Go Project
+        run: |
+          go build -o ${{ inputs.MODULE }}/bin/${{ inputs.MODULE }} ${{ inputs.MODULE }}
+          echo "🧱 BINARY BUILT FOR MODULE ${{ inputs.MODULE }}"
+
+      # Stora Binary as Artifact
+      - name: Store Binary as Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ inputs.MODULE }}-binary
+          path: ${{ inputs.MODULE }}/bin/${{ inputs.MODULE }}
+          retention-days: 1 # 1일 후에 Artifact 삭제
