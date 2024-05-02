@@ -1,0 +1,89 @@
+# ECR 이미지에 새 태그 추가
+name: "Operation : Add Tag to Dockerhub Image"
+
+
+permissions:
+  id-token: write # Configure AWS Credentials에서 ID Token 쓰기 권한 사용
+
+on:
+  workflow_call:              # workflow_call 호출
+    inputs:
+      MODULE:                 # 모듈 이름
+        required: true
+        type: string
+      EXISTING_TAG:           # 기존 태그, 커밋의 SHA
+        required: true
+        type: string
+      NEW_TAG:                # 추가할 태그, 커밋의 태그
+        required: true
+        type: string
+      USERNAME:               # ECR 계정 이름
+        required: true
+        type: string
+    secrets:
+      AWS_ACCOUNT_ID:         # ECR 계정 ID
+        required: true
+      AWS_REGION:             # ECR 리전
+        required: true
+      IAM_ROLE:               # IAM Role Assume 권한
+        required: true
+
+jobs:
+  add-tag:
+    runs-on: ubuntu-latest  # Github Hosted Ubuntu Runner에서 실행
+    steps:
+      # 추가할 이미지 태그 출력
+      - run: echo "🔖 IMAGE TAG ${{ inputs.NEW_TAG }}"
+
+      # AWS IAM Role Assume 권한 설정
+      - id: configure-aws-credentials
+        name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.IAM_ROLE }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      # Dockerhub 로그인
+      - id: login-docker
+        name: Login to Dockerhub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 현재 커밋의 이미지가 ECR에 존재하는지 확인
+      - id: check-image
+        name: Check if image exists
+        env:
+          MODULE: ${{ inputs.MODULE }}                      # 모듈 이름
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }} # ECR 레포지토리 주소
+          USERNAME: ${{ inputs.USERNAME }}                  # ECR 계정 이름
+          REPOSITORY: devops                                # ECR 레포지토리 이름
+          EXISTING_TAG: ${{ inputs.EXISTING_TAG }}          # 기존 태그, 커밋의 SHA
+        run: docker pull $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$EXISTING_TAG  # 이미지 pull 시도
+        continue-on-error: true
+      
+      # 이미지가 존재하지 않으면 종료
+      - id: check-image-output
+        if: steps.check-image.outcome == 'failure'
+        run: echo IMAGE NOT FOUND
+      
+      # 이미지가 존재하면 새 태그 추가
+      - id: add-image-tag
+        if: steps.check-image.outcome == 'success'
+        name: Add image tag with new git tag
+        env:
+          MODULE: ${{ inputs.MODULE }}                      # 모듈 이름
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }} # ECR 레지스트리 주소
+          USERNAME: ${{ inputs.USERNAME }}                  # ECR 계정 이름
+          REPOSITORY: devops                                # ECR 레포지토리 이름
+          EXISTING_TAG: ${{ inputs.EXISTING_TAG }}          # 기존 태그, 커밋의 SHA
+          NEW_TAG: ${{ inputs.NEW_TAG }}                    # 추가할 태그, 커밋의 태그
+        # 이미지를 pull 하고 새 태그를 추가한 뒤 push
+        run: |
+          docker pull $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$EXISTING_TAG
+          echo "🐳 DOCKER IMAGE FOUND FOR MODULE ${{ inputs.MODULE }} AS $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$EXISTING_TAG"
+          docker tag $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$EXISTING_TAG $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG
+          echo "🏷️ IMAGE TAGGED FOR MODULE ${{ inputs.MODULE }} AS $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG"
+          docker push $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG
+          echo "🚀 IMAGE $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG PUSHED"
