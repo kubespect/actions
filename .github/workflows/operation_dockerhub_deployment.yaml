@@ -9,21 +9,16 @@ permissions:
 on:
   workflow_call:          # workflow_call 호출
     inputs:
-      MODULE:             # 모듈 이름
+      REPOSITORY:             # 모듈 이름
         required: true
         type: string
       NEW_TAG:            # 추가할 태그, 커밋의 SHA
         required: true
         type: string
-      USERNAME:           # ECR 계정 이름
-        required: true
-        type: string
     secrets:
-      AWS_ACCOUNT_ID:     # ECR 계정 ID
+      DOCKERHUB_USERNAME:
         required: true
-      AWS_REGION:         # ECR 리전
-        required: true
-      IAM_ROLE:           # IAM Role Assume 권한
+      DOCKERHUB_TOKEN:
         required: true
 
 jobs:
@@ -41,7 +36,7 @@ jobs:
       - name: Retreive Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: ${{ inputs.MODULE }}-jar
+          name: ${{ inputs.REPOSITORY }}-jar
 
       # Docker Buildx 설정
       - id: set-buildx
@@ -60,13 +55,11 @@ jobs:
       - id: build-push-image
         name: Build and Push Docker Image to ECR
         env:
-          MODULE: ${{ inputs.MODULE }}                      # 모듈 이름
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }} # ECR 레지스트리 주소
-          USERNAME: ${{ inputs.USERNAME }}                  # ECR 계정 이름
-          REPOSITORY: devops                                # ECR 레포지토리 이름
+          REPOSITORY: ${{ inputs.REPOSITORY }}                      # 모듈 이름
+          USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}                  # ECR 계정 이름
           NEW_TAG: ${{ inputs.NEW_TAG }}                    # 추가할 태그, 커밋의 태그
         # 이미지 amd64 대상으로 빌드 및 배포
         run: |
-          docker buildx build --platform linux/amd64 -t $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG --target ${{ inputs.MODULE }} --push .
-          echo "🐳 DOCKER IMAGE BUILT FOR MODULE ${{ inputs.MODULE }} AS $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG"
-          echo "🚀 IMAGE $REGISTRY/$USERNAME/$REPOSITORY/$MODULE:$NEW_TAG PUSHED"
+          docker buildx build --platform linux/amd64 -t $USERNAME/$REPOSITORY:$NEW_TAG --push .
+          echo "🐳 DOCKER IMAGE BUILT FOR REPOSITORY ${{ inputs.REPOSITORY }} AS $USERNAME/$REPOSITORY:$NEW_TAG"
+          echo "🚀 IMAGE $USERNAME/$REPOSITORY:$NEW_TAG PUSHED"
