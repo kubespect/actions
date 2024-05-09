@@ -9,7 +9,7 @@ permissions:
 on:
   workflow_call:  # workflow_call 호출
     inputs:
-      MODULE:     # 모듈 이름
+      NAME:     # 모듈 이름
         required: true
         type: string
 
@@ -36,20 +36,20 @@ jobs:
       # Test Go Project
       - name: Test Go Project
         run: |
-          echo "🧪 TESTING MODULE ${{ inputs.MODULE }}"
-          go test -v ${{ inputs.MODULE }}
-          echo "🧪 TEST VALIDATED FOR MODULE ${{ inputs.MODULE }}, MOVING ON TO BUILD"
+          echo "🧪 TESTING PROJECT
+          go test -v
+          echo "🧪 TEST VALIDATED, MOVING ON TO BUILD"
 
       # Build Go Project
       - name: Build Go Project
         run: |
-          go build -o ${{ inputs.MODULE }}/bin/${{ inputs.MODULE }} ${{ inputs.MODULE }}
-          echo "🧱 BINARY BUILT FOR MODULE ${{ inputs.MODULE }}"
+          go build -o ${{ inputs.NAME }}
+          echo "🧱 BINARY BUILT FOR ${{ inputs.NAME }}"
 
       # Stora Binary as Artifact
       - name: Store Binary as Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ inputs.MODULE }}-binary
-          path: ${{ inputs.MODULE }}/bin/${{ inputs.MODULE }}
+          name: ${{ inputs.NAME }}-binary
+          path: ${{ inputs.NAME }}
           retention-days: 1 # 1일 후에 Artifact 삭제
