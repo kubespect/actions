@@ -32,8 +32,8 @@ jobs:
       - id: scan-changes
         name: Scan Changes
         run: |
-          echo "🔍 CHECKING CHANGES BETWEEN ${{ inputs.FIRST_COMMIT }} AND ${{ inputs.LAST_COMMIT }} FOR MODULE ${{ inputs.MODULE }}"
-          CHANGES=$(git diff --name-only ${{ inputs.FIRST_COMMIT }} ${{ inputs.LAST_COMMIT }} ${{ inputs.MODULE }} | awk 'END{print NR}')
+          echo "🔍 CHECKING CHANGES BETWEEN ${{ inputs.FIRST_COMMIT }} AND ${{ inputs.LAST_COMMIT }}"
+          CHANGES=$(git diff --name-only ${{ inputs.FIRST_COMMIT }} ${{ inputs.LAST_COMMIT }} . | awk 'END{print NR}')
           echo "CHANGES=$CHANGES" >> $GITHUB_OUTPUT
           echo "🔍 CHANGES CHECKED"
           echo $CHANGES CHANGES DETECTED FOR MODULE ${{ inputs.MODULE }}

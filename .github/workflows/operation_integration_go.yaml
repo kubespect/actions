@@ -1,11 +1,6 @@
 # 테스트 및 빌드를 수행
 name: "Operation : Integration for Go"
 
-
-permissions:
-  contents: read  # Checkout Code에서 코드 읽기 권한 사용
-  packages: write # Store JAR as Artifact에서 Artifact 쓰기 권한 사용
-
 on:
   workflow_call:  # workflow_call 호출
     inputs:
@@ -45,11 +40,3 @@ jobs:
         run: |
           go build -o ${{ inputs.NAME }}
           echo "🧱 BINARY BUILT FOR ${{ inputs.NAME }}"
-
-      # Stora Binary as Artifact
-      - name: Store Binary as Artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ inputs.NAME }}-binary
-          path: ${{ inputs.NAME }}
-          retention-days: 1 # 1일 후에 Artifact 삭제
